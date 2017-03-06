@@ -10,11 +10,11 @@ https://clojars.org/tarantool-clj-1.7
 
 ## Features
 
-[+] Syncronous and asyncronous (clojure.core.async) interfaces
-[+] Tuple and Record (map) interfaces
-[+] Named spaces support
-[-] Autoreconnection
-[-] Request timeouts
+  [+] Syncronous and asyncronous (clojure.core.async) interfaces
+  [+] Tuple and Record (map) interfaces
+  [+] Named spaces support
+  [-] Autoreconnection
+  [-] Request timeouts
 
 ## Usage
 
