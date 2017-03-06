@@ -16,9 +16,9 @@ https://clojars.org/tarantool-clj-1.7
   
   [+] Named spaces support
   
-  [-] Autoreconnection
+  [+] Auto reconnection
   
-  [-] Request timeouts
+  [+] Request timeouts
 
 ## Usage
 

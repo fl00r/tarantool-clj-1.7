@@ -70,6 +70,6 @@
    :port 3301
    :auto-reconnect? true
    :request-timeout 10000
-   :async? false})
+   :async? true})
 
 (def SCRAMBLE-SIZE 20)
