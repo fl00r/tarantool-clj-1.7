@@ -2,11 +2,19 @@
 
 Implementaion on [Tarantool Protocol](https://tarantool.org/en/doc/book/connectors/index.html) 1.7 on Clojure.
 
-Connector for Tarantool 1.6 you can find [here](htpps://github.com/fl00r/tarantool-clj)
+Connector for Tarantool 1.6 you can find [here](https://github.com/fl00r/tarantool-clj)
 
 ## Install
 
 https://clojars.org/tarantool-clj-1.7
+
+## Features
+
+[+] Syncronous and asyncronous (clojure.core.async) interfaces
+[+] Tuple and Record (map) interfaces
+[+] Named spaces support
+[-] Autoreconnection
+[-] Request timeouts
 
 ## Usage
 
