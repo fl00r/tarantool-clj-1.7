@@ -35,7 +35,7 @@
         (tuple-space/select 2 [space-name])
         (first)
         (first)
-        (or (throw (Exception. (str "Unknown space name: " space-name)))))))
+        (or (throw (Exception. (format "Unknown space name: %s" space-name)))))))
 
 (defn- parse-indexes
   [indexes {:keys [fields]}]
@@ -45,12 +45,14 @@
           (fn [[_ index-id _ _ _ parts]]
             (let [parts->fields
                   (doall
-                   (map (fn [[n _]]
-                          (when (>= n max-n)
-                            (throw (Exception.
-                                    (str "field-no exceeded number of fields you passed: field-no "
-                                         n ", fields: " fields))))
-                          (nth fields n))
+                   (map
+                    (fn [[n _]]
+                      (when (>= n max-n)
+                        (throw
+                         (Exception.
+                          (format "field-no exceeded number of fields you passed: field-no %s, fields: %s"
+                                  n fields))))
+                      (nth fields n))
                         parts))]
               [index-id parts->fields])))
          (into {}))))
@@ -75,7 +77,7 @@
       index-id
       (throw
        (Exception.
-        (str "Can't find proper index for keys: " keys " in indexes " index-definitions))))))
+        (format "Can't find proper index for keys: %s in indexes %s" keys index-definitions))))))
 
 (defn- key-doc->key-tuple
   [space key-doc index-id]
@@ -90,7 +92,7 @@
            (filter identity))
       (throw
        (Exception.
-        (str "Keys " keys " doesn't match index keys " index-keys))))))
+        (format "Keys %s doesn't match index keys %s" keys index-keys))))))
 
 (defn- data-doc->data-tuple
   [space doc]
@@ -162,7 +164,6 @@
               this
               (tuple-space/replace tuple-space data-tuple))))
   (update [{:keys [tuple-space] :as this} key-doc ops-doc]
-          ;; warn: index-id is not supported in underlying Java client
           (let [index-id (key-doc->index-id this key-doc)
                 key-tuple (key-doc->key-tuple this key-doc index-id)
                 ops-tuple (ops-doc->ops-tuple this ops-doc)]
@@ -176,7 +177,6 @@
              this
              (tuple-space/delete tuple-space key-tuple))))
   (upsert [{:keys [tuple-space]} data-tuple ops-tuples]
-          ;; upsert is broken
           (tuple-space/upsert tuple-space data-tuple ops-tuples))
   (call [{:keys [tuple-space]} function-name]
         (tuple-space/call tuple-space function-name))

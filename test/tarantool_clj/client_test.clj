@@ -8,17 +8,19 @@
             [com.stuartsierra.component :as component]))
 
 (def config (clojure.edn/read-string (slurp "config/test.clj")))
-(def client (-> config
-                :tarantool
-                (client/new-client)
-                (component/start)))
+
+(defn client []
+  (-> config
+      :tarantool
+      (client/new-client)
+      (component/start)))
 
 (use-fixtures :each (partial with-truncated-tarantool client))
 
 (deftest tuple-space
   (let [space (->> config
                    :tester-tuple-space
-                   (tuple-space/new-tuple-space client)
+                   (tuple-space/new-tuple-space (client))
                    (component/start))]
     (are [x y] (= x y)
       (tuple-space/insert space [1 "Steve" "Buscemi"])
@@ -51,7 +53,7 @@
 (deftest space
   (let [space (->> config
                    :tester-space
-                   (space/new-space client)
+                   (space/new-space (client))
                    (component/start))]
     (are [x y] (= x y)
       (space/insert space

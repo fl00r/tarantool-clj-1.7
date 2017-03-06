@@ -82,6 +82,7 @@
                   (:tuple constants/USER-KEYS) ["chap-sha1" scramble]}]
       (send-packet output 0 :auth body)
       (let [[length header body] (get-response input)]
+        (-> (error-or-data header body) (safe-return))
         (log/debug "Authorized successfully")))))
 
 (defn- greeting!
@@ -125,7 +126,7 @@
                       response-id (get header (:sync constants/USER-KEYS))
                       chan (get requests response-id)
                       data (error-or-data header body)]
-                  (log/debug (format "Response %s is received with body %s and data %s" response-id body data))
+                  (log/debug (format "Response %s is received with body %s and header %s" response-id body header))
                   (a/>! chan data)
                   (recur (dissoc requests response-id) stopping? request-id)))
               (a/alt! requests-chan
@@ -224,15 +225,3 @@
     (-> config*
         map->TarantoolConnection
         component/start)))
-
-(comment
-  (let [connection (new-tarantool-connection {:username "tester" :password "tester"})
-        body {(:space-id constants/USER-KEYS) 1
-              (:index-id constants/USER-KEYS) 0
-              (:limit constants/USER-KEYS) 10
-              (:offset constants/USER-KEYS) 0
-              (:iterator constants/USER-KEYS) (:eq constants/ITERATORS)
-              (:key constants/USER-KEYS) [0]}
-        response (send-request connection :select body)]
-    (prn (a/<!! response))
-    (component/stop connection)))

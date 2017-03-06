@@ -25,7 +25,7 @@
     [this expression]
     [this expression args]))
 
-(defn select*
+(defn- select*
   [{:keys [client id] :as tuple-space}
    index-id
    tuple
@@ -33,11 +33,8 @@
   (let [iterator-id (get constants/ITERATORS iterator)]
     (when-not iterator-id
       (throw (Exception.
-              (str
-               "Wrong iterator "
-               iterator
-               ", valid iterators are: "
-               (keys constants/ITERATORS)))))
+              (format "Wrong iterator %s, not one of %s"
+                      iterator (keys constants/ITERATORS)))))
     (client/select client id index-id limit offset iterator-id tuple)))
 
 (defrecord TupleSpace [id client]
