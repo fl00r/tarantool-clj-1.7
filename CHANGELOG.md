@@ -9,7 +9,7 @@ Following sections are described here: Added, Changed, Depricated, Removed, Fixe
 ### Fixed
 - README is fixed
 - BUG: async mode had an Exception during index or space id by name dispatching
-[https://github.com/fl00r/tarantool-clj-1.7/issues/1](Issue). Thanks to [https://github.com/middlesphere](middlespere)
+[Issue](https://github.com/fl00r/tarantool-clj-1.7/issues/1). Thanks to [middlesphere](https://github.com/middlesphere)
 
 ## 0.0.1
 ### Added
