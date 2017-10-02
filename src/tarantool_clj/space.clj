@@ -28,7 +28,9 @@
 (defn- get-space-id
   [{:keys [client space-config]}]
   (let [space-name (:name space-config)
-        spaces-tuple-space (tuple-space/new-spaces-tuple-space client)]
+        ;; we don't want to mess with sync/async client here
+        sync-client (assoc-in client [:connection :async?] false)
+        spaces-tuple-space (tuple-space/new-spaces-tuple-space sync-client)]
     (when-not space-name
       (throw (Exception. "You should specify space name")))
     (-> spaces-tuple-space
@@ -59,7 +61,9 @@
 
 (defn- get-index-definitions
   [{:keys [client space-config] :as space} space-id]
-  (let [indexes-tuple-space (tuple-space/new-indexes-tuple-space client)]
+  (let [;; we don't want to mess with sync/async client here
+        sync-client (assoc-in client [:connection :async?] false)
+        indexes-tuple-space (tuple-space/new-indexes-tuple-space sync-client)]
     (-> indexes-tuple-space
         (tuple-space/select 0 [space-id])
         (parse-indexes space-config))))

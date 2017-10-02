@@ -31,12 +31,13 @@ https://clojars.org/tarantool-clj-1.7
     {:host "127.0.0.1"
      :port 3301
      :username "test"
-     :password "test"})
+     :password "test"
+     :async? false})
 
   (def test-space-config
     {:name "test"
      :fields [:id :first-name :second-name]
-     :tail :_tail}
+     :tail :_tail})
 
   (let [client (-> connection-config 
                    (client/new-client) 
