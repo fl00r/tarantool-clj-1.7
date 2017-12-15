@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. This change
 Following sections are described here: Added, Changed, Depricated, Removed, Fixed, Security
 
 ## [Unreleased]
+### Fixed
+- Typo in an Exception
 
 ## 0.0.2
 ### Fixed

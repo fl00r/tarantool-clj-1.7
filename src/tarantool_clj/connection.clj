@@ -28,7 +28,7 @@
         ok-code (:ok constants/RESPONSE-CODES)
         data (get body (:data constants/USER-KEYS))]
     (if (not= ok-code code)
-      (Exception. (format "Tarantool Prtotocol Error: 0x%x, %s" code error))
+      (Exception. (format "Tarantool Protocol Error: 0x%x, %s" code error))
       data)))
 
 (defn- safe-return
