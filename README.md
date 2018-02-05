@@ -1,6 +1,6 @@
 # tarantool-clj
 
-Implementaion onf[Tarantool Protocol](https://tarantool.org/en/doc/book/connectors/index.html) 1.7 on Clojure.
+Implementaion of [Tarantool Protocol](https://tarantool.org/en/doc/book/connectors/index.html) 1.7
 
 Connector for Tarantool 1.6 you can find [here](https://github.com/fl00r/tarantool-clj)
 
