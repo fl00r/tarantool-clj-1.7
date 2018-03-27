@@ -49,12 +49,13 @@
                          (throw (Exception. (format "Wrong request type: %s, not one of %s"
                                                     request-type
                                                     (keys constants/REQUEST-CODES)))))
-        header (cond-> {(:code constants/USER-KEYS) request-code
-                        (:sync constants/USER-KEYS) request-id}
-                 schema-id (assoc (:schema-id constants/USER-KEYS) schema-id)
-                 true (msgpack/pack))
-        size (-> (+ (count body) (count header))
-                 (msgpack/pack))]
+
+        header (msgpack/pack
+                 (cond-> {(:code constants/USER-KEYS) request-code
+                          (:sync constants/USER-KEYS) request-id}
+                         schema-id (assoc (:schema-id constants/USER-KEYS) schema-id)))
+
+        size (msgpack/pack (+ (count body) (count header)))]
     (doseq [data [size header body]]
       (.write output data))
     (.flush output)))
@@ -62,8 +63,7 @@
 
 (defn- xor
   [left right size]
-  (->> (map bit-xor left right)
-       (take size)))
+  (take size (map bit-xor left right)))
 
 (defn- authorize!
   [input output salt username password]
@@ -73,32 +73,34 @@
                             base64/decode)
           step-1 (.digest (MessageDigest/getInstance "SHA1") (.getBytes password))
           step-2 (.digest (MessageDigest/getInstance "SHA1") step-1)
-          step-3 (-> (doto (MessageDigest/getInstance "SHA1")
-                       (.update salt-decoded 0 20)
-                       (.update step-2))
-                     (.digest))
-          scramble (->> (xor step-1 step-3 constants/SCRAMBLE-SIZE) (byte-array))
-          body {(:username constants/USER-KEYS) username
-                (:tuple constants/USER-KEYS) ["chap-sha1" scramble]}]
+          step-3 (.digest
+                         (doto
+                           (MessageDigest/getInstance "SHA1")
+                           (.update salt-decoded 0 20)
+                           (.update step-2)))
+
+          scramble (byte-array (xor step-1 step-3 constants/SCRAMBLE-SIZE))
+          body     {(:username constants/USER-KEYS) username
+                    (:tuple constants/USER-KEYS)    ["chap-sha1" scramble]}]
       (send-packet output 0 :auth body)
       (let [[length header body] (get-response input)]
-        (-> (error-or-data header body) (safe-return))
+        (safe-return (error-or-data header body))
         (log/debug "Authorized successfully")))))
 
 (defn- greeting!
   [input]
   (log/debug "Starting greeting")
-  (let [greeting (-> (get-packet input constants/GREETING-LENGTH)
-                     (vec))
+  (let [greeting (vec (get-packet input constants/GREETING-LENGTH))
+
         version (->> (subvec greeting 0 constants/GREETING-VERSION-LENGTH)
                      (map char)
                      (string/join))
-        salt (->> (subvec greeting
-                          constants/GREETING-VERSION-LENGTH
-                          (+ constants/GREETING-VERSION-LENGTH
-                             constants/GREETING-SALT-LENGTH))
-                  (map char)
-                  (string/join))]
+        salt    (->> (subvec greeting
+                             constants/GREETING-VERSION-LENGTH
+                             (+ constants/GREETING-VERSION-LENGTH
+                                constants/GREETING-SALT-LENGTH))
+                     (map char)
+                     (string/join))]
     (log/debug "Greeting succeeded:" version)
     [version salt]))
 
@@ -142,23 +144,23 @@
                                  write-loop-stop :stopped
                                  write-chan
                                  ([[request-id request-type request-body request-timeout-chan]]
-                                  (if (or (nil? request-timeout-chan)
-                                          (a/alt!! request-timeout-chan false :default true))
-                                    (let [[status res] (try
-                                                         [:ok (send-packet output
-                                                                           request-id
-                                                                           request-type
-                                                                           request-body)]
-                                                         (catch java.net.SocketException e
-                                                           [:stop e])
-                                                         (catch Exception e
-                                                           [:error e]))]
-                                      (case status
-                                        :ok (recur)
-                                        :error (do (a/>!! responses-chan [request-id res])
-                                                   (recur))
-                                        :stop :stop))
-                                    (recur))))))
+                                   (if (or (nil? request-timeout-chan)
+                                           (a/alt!! request-timeout-chan false :default true))
+                                     (let [[status res] (try
+                                                          [:ok (send-packet output
+                                                                            request-id
+                                                                            request-type
+                                                                            request-body)]
+                                                          (catch java.net.SocketException e
+                                                            [:stop e])
+                                                          (catch Exception e
+                                                            [:error e]))]
+                                       (case status
+                                         :ok (recur)
+                                         :error (do (a/>!! responses-chan [request-id res])
+                                                    (recur))
+                                         :stop :stop))
+                                     (recur))))))
                 read-loop (a/thread
                             (log/debug "Read Loop: started")
                             (loop []
@@ -210,7 +212,7 @@
       (loop [requests {} running? true request-id 0]
         (log/debug "Request Response Loop: waiting for event")
         (let [channels (cond-> [requests-chan responses-chan timeouts-chan]
-                         running? (conj stop-chan))
+                               running? (conj stop-chan))
               [v chan] (a/alts!! channels)]
           (log/debug "Request Response Loop: new event")
           (condp = chan
@@ -227,14 +229,14 @@
             requests-chan (do
                             (log/debug "Request Response Loop: request event")
                             (let [request-id* (inc request-id)
-                                  [request-type request-body response-chan] v
+                                  [request-type request-body response-chan callback-fn] v
                                   request-timeout-chan (when request-timeout
                                                          (a/timeout request-timeout))]
                               (when request-timeout-chan
                                 (a/go (a/<! request-timeout-chan)
                                       (a/>! timeouts-chan request-id*)))
                               (a/>!! write-chan [request-id* request-type request-body request-timeout-chan])
-                              (recur (assoc requests request-id* response-chan)
+                              (recur (assoc requests request-id* {:chan response-chan :callback-fn callback-fn})
                                      running?
                                      request-id*)))
             responses-chan (do
@@ -245,9 +247,10 @@
                                    (a/>!! response-chan (Exception. (format "Internal error"))))
                                  (when running? (recur {} running? request-id)))
                                (let [[response-id data] v
-                                     response-chan (get requests response-id)]
+                                     response-chan (:chan (get requests response-id))
+                                     callback-fn (:callback-fn (get requests response-id))]
                                  (if response-chan
-                                   (a/>!! response-chan data)
+                                   (a/>!! response-chan (callback-fn data))
                                    (log/debug (format "Deadend response %s %s" response-id data)))
                                  (when (or running? (seq requests))
                                    (recur (dissoc requests response-id) running? request-id)))))))))
@@ -268,7 +271,12 @@
     [requests-chan stop-fn]))
 
 (defprotocol TarantoolConnectionProtocol
-  (send-request [this request-type request-packet]))
+  (send-request
+    [this request-type request-packet]
+    [this request-type request-packet callback-fn]))
+
+(def empty-callback-fn
+  (fn [v] v))
 
 (defrecord TarantoolConnection [host port username password auto-reconnect? request-timeout async?
                                 requests-chan socket-loop-stop-fn]
@@ -277,8 +285,8 @@
     (log/debug "Starting tarantool connection")
     (let [[requests-chan socket-loop-stop-fn] (event-loop this)]
       (assoc this
-             :socket-loop-stop-fn socket-loop-stop-fn
-             :requests-chan requests-chan)))
+        :socket-loop-stop-fn socket-loop-stop-fn
+        :requests-chan requests-chan)))
   (stop [this]
     (log/debug "Stopping tarantool connection: ...")
     (socket-loop-stop-fn)
@@ -287,14 +295,20 @@
   TarantoolConnectionProtocol
   (send-request [this request-type request-body]
     (let [response-chan (a/chan)]
-      (a/>!! requests-chan [request-type request-body response-chan])
+      (a/>!! requests-chan [request-type request-body response-chan empty-callback-fn])
+      (if async?
+        response-chan
+        (safe-return (a/<!! response-chan)))))
+  (send-request [this request-type request-body callback-fn]
+    (let [response-chan (a/chan)]
+      (a/>!! requests-chan [request-type request-body response-chan callback-fn])
       (if async?
         response-chan
         (safe-return (a/<!! response-chan))))))
 
 (defn new-tarantool-connection
   [config]
-  (let [config* (-> (merge constants/DEFAULT-CONNECTION config))]
+  (let [config* (merge constants/DEFAULT-CONNECTION config)]
     (-> config*
         map->TarantoolConnection
         component/start)))

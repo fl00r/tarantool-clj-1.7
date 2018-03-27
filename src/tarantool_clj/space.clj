@@ -12,7 +12,8 @@
     [this key-doc opts])
   (select
     [this key-doc]
-    [this key-doc opts])
+    [this key-doc opts]
+    [this key-doc opts callback-fn])
   (insert [this data-doc])
   (replace [this data-doc])
   (update [this key-doc ops-doc])
@@ -144,9 +145,9 @@
         (dissoc this :tuple-space))
   SpaceProtocol
   (select-first [this key-doc]
-                (first (select this key-doc {})))
+                (select this key-doc {} (fn [v] (first v))))
   (select-first [this key-doc opts]
-                (first (select this key-doc opts)))
+                (select this key-doc opts (fn [v] (first v))))
   (select [this key-doc]
           (select this key-doc {}))
   (select [{:keys [tuple-space] :as this} key-doc opts]
@@ -154,32 +155,28 @@
                           (:index opts)
                           (key-doc->index-id this key-doc))
                 key-tuple (key-doc->key-tuple this key-doc index-id)]
-            (data-tuples->data-docs
-             this
-             (tuple-space/select tuple-space index-id key-tuple opts))))
+             (tuple-space/select tuple-space index-id key-tuple opts (fn [v] (data-tuples->data-docs this v)))))
+  (select [{:keys [tuple-space] :as this} key-doc opts callback-fn]
+    (let [index-id (or
+                     (:index opts)
+                     (key-doc->index-id this key-doc))
+          key-tuple (key-doc->key-tuple this key-doc index-id)]
+      (tuple-space/select tuple-space index-id key-tuple opts (fn [v] (callback-fn (data-tuples->data-docs this v))))))
   (insert [{:keys [tuple-space] :as this} data-doc]
           (let [data-tuple (data-doc->data-tuple this data-doc)]
-            (data-tuples->data-docs
-             this
-             (tuple-space/insert tuple-space data-tuple))))
+             (tuple-space/insert tuple-space data-tuple (fn [v] (data-tuples->data-docs this v)))))
   (replace [{:keys [tuple-space] :as this} data-doc]
            (let [data-tuple (data-doc->data-tuple this data-doc)]
-             (data-tuples->data-docs
-              this
-              (tuple-space/replace tuple-space data-tuple))))
+              (tuple-space/replace tuple-space data-tuple (fn [v] (data-tuples->data-docs this v)))))
   (update [{:keys [tuple-space] :as this} key-doc ops-doc]
           (let [index-id (key-doc->index-id this key-doc)
                 key-tuple (key-doc->key-tuple this key-doc index-id)
                 ops-tuple (ops-doc->ops-tuple this ops-doc)]
-            (data-tuples->data-docs
-             this
-             (tuple-space/update tuple-space key-tuple ops-tuple))))
+             (tuple-space/update tuple-space index-id key-tuple ops-tuple (fn [v] (data-tuples->data-docs this v)))))
   (delete [{:keys [tuple-space] :as this} key-doc]
           (let [index-id (key-doc->index-id this key-doc)
                 key-tuple (key-doc->key-tuple this key-doc index-id)]
-            (data-tuples->data-docs
-             this
-             (tuple-space/delete tuple-space key-tuple))))
+             (tuple-space/delete tuple-space index-id key-tuple (fn [v] (data-tuples->data-docs this v)))))
   (upsert [{:keys [tuple-space]} data-tuple ops-tuples]
           (tuple-space/upsert tuple-space data-tuple ops-tuples))
   (call [{:keys [tuple-space]} function-name]

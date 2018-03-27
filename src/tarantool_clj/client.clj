@@ -57,14 +57,31 @@
 ;; https://tarantool.org/en/doc/dev_guide/internals_index.html#box-protocol-iproto-protoco
 ;;
 (defprotocol TarantoolClientProtocol
-  (select [this space-id index-id limit offset iterator key-tuple])
-  (insert [this space-id data-tuple])
-  (replace [this space-id data-tuple])
-  (update [this space-id index-id key-tuple ops-tuples])
-  (delete [this space-id index-id key-tuple])
-  (upsert [this space-id data-tuple ops-tuples])
-  (call [this function-name args-tuple])
-  (eval [this expression args-tuple]))
+  (select
+    [this space-id index-id limit offset iterator key-tuple]
+    [this space-id index-id limit offset iterator key-tuple callback-fn])
+  (insert
+    [this space-id data-tuple]
+    [this space-id data-tuple callback-fn])
+  (replace
+    [this space-id data-tuple])
+  (replace*
+    [this space-id data-tuple callback-fn])
+  (update
+    [this space-id index-id key-tuple ops-tuples]
+    [this space-id index-id key-tuple ops-tuples callback-fn])
+  (delete
+    [this space-id index-id key-tuple]
+    [this space-id index-id key-tuple callback-fn])
+  (upsert
+    [this space-id data-tuple ops-tuples]
+    [this space-id data-tuple ops-tuples callback-fn])
+  (call
+    [this function-name args-tuple]
+    [this function-name args-tuple callback-fn])
+  (eval
+    [this expression args-tuple]
+    [this expression args-tuple callback-fn]))
 
 (defrecord TarantoolClient [config connection]
   component/Lifecycle
@@ -85,18 +102,40 @@
                            (assoc-iterator iterator)
                            (assoc-key key-tuple))]
       (connection/send-request connection request-type request-body)))
+  (select [this space-id index-id limit offset iterator key-tuple callback-fn]
+    (let [request-type :select
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-index-id index-id)
+                           (assoc-limit limit)
+                           (assoc-offset offset)
+                           (assoc-iterator iterator)
+                           (assoc-key key-tuple))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (insert [this space-id data-tuple]
     (let [request-type :insert
           request-body (-> {}
                            (assoc-space-id space-id)
                            (assoc-tuple data-tuple))]
       (connection/send-request connection request-type request-body)))
+  (insert [this space-id data-tuple callback-fn]
+    (let [request-type :insert
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-tuple data-tuple))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (replace [this space-id data-tuple]
     (let [request-type :replace
           request-body (-> {}
                            (assoc-space-id space-id)
                            (assoc-tuple data-tuple))]
       (connection/send-request connection request-type request-body)))
+  (replace* [this space-id data-tuple callback-fn]
+    (let [request-type :replace
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-tuple data-tuple))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (update [this space-id index-id key-tuple ops-tuples]
     (let [request-type :update
           request-body (-> {}
@@ -105,6 +144,14 @@
                            (assoc-key key-tuple)
                            (assoc-tuple ops-tuples))]
       (connection/send-request connection request-type request-body)))
+  (update [this space-id index-id key-tuple ops-tuples callback-fn]
+    (let [request-type :update
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-index-id index-id)
+                           (assoc-key key-tuple)
+                           (assoc-tuple ops-tuples))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (delete [this space-id index-id key-tuple]
     (let [request-type :delete
           request-body (-> {}
@@ -112,6 +159,13 @@
                            (assoc-index-id index-id)
                            (assoc-key key-tuple))]
       (connection/send-request connection request-type request-body)))
+  (delete [this space-id index-id key-tuple callback-fn]
+    (let [request-type :delete
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-index-id index-id)
+                           (assoc-key key-tuple))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (upsert [this space-id data-tuple ops-tuples]
     (let [request-type :upsert
           request-body (-> {}
@@ -119,20 +173,39 @@
                            (assoc-tuple data-tuple)
                            (assoc-ops ops-tuples))]
       (connection/send-request connection request-type request-body)))
+  (upsert [this space-id data-tuple ops-tuples callback-fn]
+    (let [request-type :upsert
+          request-body (-> {}
+                           (assoc-space-id space-id)
+                           (assoc-tuple data-tuple)
+                           (assoc-ops ops-tuples))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (call [this function-name args-tuple]
     (let [request-type :call
           request-body (-> {}
                            (assoc-function-name function-name)
                            (assoc-tuple args-tuple))]
       (connection/send-request connection request-type request-body)))
+  (call [this function-name args-tuple callback-fn]
+    (let [request-type :call
+          request-body (-> {}
+                           (assoc-function-name function-name)
+                           (assoc-tuple args-tuple))]
+      (connection/send-request connection request-type request-body callback-fn)))
   (eval [this expression args-tuple]
     (let [request-type :eval
           request-body (-> {}
                            (assoc-expression expression)
                            (assoc-tuple args-tuple))]
-      (connection/send-request connection request-type request-body))))
+      (connection/send-request connection request-type request-body)))
+  (eval [this expression args-tuple callback-fn]
+    (let [request-type :eval
+          request-body (-> {}
+                           (assoc-expression expression)
+                           (assoc-tuple args-tuple))]
+      (connection/send-request connection request-type request-body callback-fn))))
 
 (defn new-client
   [config]
-  (-> (map->TarantoolClient {:config config})
-      component/start))
+  (component/start (map->TarantoolClient {:config config})))
+
