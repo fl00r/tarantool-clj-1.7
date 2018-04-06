@@ -37,6 +37,12 @@
     (throw data)
     data))
 
+(defn- safe-callback
+  [data callback-fn]
+  (if (= java.lang.Exception (type data))
+    data
+    (callback-fn data)))
+
 (defn- get-response
   [input]
   (let [[length header body] (repeatedly 3 #(get-msgpack-packet input))]
@@ -250,7 +256,7 @@
                                      response-chan (:chan (get requests response-id))
                                      callback-fn (:callback-fn (get requests response-id))]
                                  (if response-chan
-                                   (a/>!! response-chan (callback-fn data))
+                                   (a/>!! response-chan (safe-callback data callback-fn))
                                    (log/debug (format "Deadend response %s %s" response-id data)))
                                  (when (or running? (seq requests))
                                    (recur (dissoc requests response-id) running? request-id)))))))))

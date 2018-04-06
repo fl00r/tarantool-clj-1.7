@@ -35,8 +35,11 @@
                [[3 "Tim" "Roth"]]
 
                (a/<!! (tuple-space/select space 0 [1]))
-               [[1 "Steve" "Buscemi"]]
+               [[1 "Steve" "Buscemi"]])
 
+    (is (= (type (a/<!!(tuple-space/insert space [3 "Tim" "Roth"]))) java.lang.Exception))
+
+    (are [x y] (= x y)
                (a/<!! (tuple-space/select space 1 ["Steve"] {:iterator :eq}))
                [[1 "Steve" "Buscemi"] [2 "Steve" "Jobs"]]
 
@@ -76,8 +79,12 @@
                              {:id 3
                               :first-name "Tim"
                               :second-name "Roth"}))
-               '({:id 3 :first-name "Tim" :second-name "Roth"})
+               '({:id 3 :first-name "Tim" :second-name "Roth"}))
 
+    (is (= (type (a/<!!(space/insert space {:id 3
+                                            :first-name "Tim"
+                                            :second-name "Roth"}))) java.lang.Exception))
+    (are [x y] (= x y)
                (a/<!! (space/insert space
                              {:id 4
                               :first-name "Bill"
@@ -137,4 +144,3 @@
                (a/<!! (space/call space
                            "ping"))
                ["pong"])))
-
