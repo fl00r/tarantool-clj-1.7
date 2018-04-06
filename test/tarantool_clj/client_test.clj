@@ -33,7 +33,11 @@
       [[3 "Tim" "Roth"]]
 
       (tuple-space/select space 0 [1])
-      [[1 "Steve" "Buscemi"]]
+      [[1 "Steve" "Buscemi"]])
+
+    (is (thrown? Exception (tuple-space/insert space [3 "Tim" "Roth"])))
+
+    (are [x y] (= x y)
 
       (tuple-space/select space 1 ["Steve"] {:iterator :eq})
       [[1 "Steve" "Buscemi"] [2 "Steve" "Jobs"]]
@@ -79,7 +83,14 @@
                      :first-name "Bill"
                      :second-name "Gates"
                      :_tail [1 2 3 4 5]})
-      '({:id 4 :first-name "Bill" :second-name "Gates" :_tail (1 2 3 4 5)})
+      '({:id 4 :first-name "Bill" :second-name "Gates" :_tail (1 2 3 4 5)}))
+
+    (is (thrown? Exception (space/insert space {:id 4
+                                                :first-name "Bill"
+                                                :second-name "Gates"
+                                                :_tail [1 2 3 4 5]})))
+
+    (are [x y] (= x y)
 
       (space/select-first space
                           {:id 1})
